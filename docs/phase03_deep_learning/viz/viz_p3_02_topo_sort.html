@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>위상 정렬 (Topological Sort) 오케스트레이션</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 40px);
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Seed Controls */
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button {
+            margin-bottom: 0;
+        }
+
+        /* Parameter Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Colors Section */
+        .color-group {
+            margin-bottom: 16px;
+        }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button.tertiary {
+            background: var(--anthropic-green);
+        }
+
+        .button.tertiary:hover {
+            background: #6b7b52;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            position: relative;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.05);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--anthropic-dark);
+        }
+
+        #canvas-container canvas {
+            display: block;
+            border-radius: 8px;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        #status-bar {
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--anthropic-light);
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            text-align: center;
+            border: 1px solid var(--anthropic-light-gray);
+            font-weight: bold;
+            color: var(--anthropic-dark);
+        }
+
+        @media (max-width: 800px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <h1>위상 정렬 (Topo Sort)</h1>
+            <div class="subtitle">DFS 탐색을 통해 깊은 자식 노드부터 차례대로 번호를 매깁니다.</div>
+
+            <!-- Seed Section -->
+            <div class="control-section">
+                <h3>생성 시드 (Seed)</h3>
+                <input type="number" id="seed-input" class="seed-input" value="7777" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← 이전</button>
+                    <button class="button secondary" onclick="nextSeed()">다음 →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ 랜덤 구조 생성</button>
+            </div>
+
+            <div id="status-bar">상태: 준비 완료</div>
+
+            <!-- Actions Section -->
+            <div class="control-section" style="margin-top:16px;">
+                <h3>탐색 액션</h3>
+                <div class="button-row">
+                    <button class="button tertiary" id="btn-start" onclick="startDFS()">▶ DFS 시작</button>
+                </div>
+                <div class="button-row">
+                    <button class="button secondary" id="btn-pause" onclick="togglePause()">|| 일시정지</button>
+                    <button class="button" onclick="restartDFS()">↺ 재시작</button>
+                </div>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>그래프 파라미터</h3>
+                
+                <div class="control-group">
+                    <label>노드 개수 (복잡도)</label>
+                    <div class="slider-container">
+                        <input type="range" id="nodeCount" min="8" max="35" step="1" value="20" oninput="updateParam('nodeCount', this.value)">
+                        <span class="value-display" id="nodeCount-value">20</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>탐색 애니메이션 속도</label>
+                    <div class="slider-container">
+                        <input type="range" id="animSpeed" min="1" max="10" step="1" value="4" oninput="updateParam('animSpeed', this.value)">
+                        <span class="value-display" id="animSpeed-value">4</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>색상 테마</h3>
+                <div class="color-group">
+                    <label>방문 중(Visiting) 노드</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#d97757" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#d97757</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>완료된(Sorted) 노드</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#6a9bcc" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#6a9bcc</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div class="card">
+                <div id="canvas-container">
+                    <div class="loading">시각화 생성 중...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // GENERATIVE ART PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
+        let params = {
+            seed: 7777,
+            nodeCount: 20,
+            animSpeed: 4, 
+            colorPalette: ['#d97757', '#6a9bcc', '#b0aea5'] // 0: Visiting, 1: Sorted, 2: Unvisited text
+        };
+
+        let defaultParams = {...params};
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // P5.JS GENERATIVE ART ALGORITHM
+        // ═══════════════════════════════════════════════════════════════════════
+        let nodes = [];
+        let edges = [];
+        let historyQueue = []; // Full recording of DFS steps
+        
+        // Animation State
+        let isPlaying = false;
+        let isPaused = false;
+        let currentFrame = 0;
+        let lastUpdateTime = 0;
+        
+        let cvsWidth = 900;
+        let cvsHeight = 700;
+
+        function setup() {
+            let canvas = createCanvas(cvsWidth, cvsHeight);
+            canvas.parent('canvas-container');
+            
+            initializeSystem();
+            
+            let loading = document.querySelector('.loading');
+            if(loading) loading.style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            nodes = [];
+            edges = [];
+            historyQueue = [];
+            isPlaying = false;
+            isPaused = false;
+            currentFrame = 0;
+            updateStatus("그래프 생성됨. 준비 완료!");
+
+            // 1. Generate Nodes (X-sorted to make DAG directional left to right)
+            let padding = 60;
+            for(let i=0; i<params.nodeCount; i++) {
+                nodes.push({
+                    id: String.fromCharCode(65 + i % 26) + (i >= 26 ? floor(i/26) : ''), // A, B, C...
+                    x: random(padding, cvsWidth - padding),
+                    y: random(padding, cvsHeight - padding),
+                    state: 'UNVISITED', // UNVISITED, VISITING, SORTED
+                    order: -1
+                });
+            }
+            
+            // X순 정렬 (DAG를 위해 무조건 왼쪽에서 오른쪽으로만 엣지 연결)
+            nodes.sort((a,b) => a.x - b.x);
+
+            // 2. Generate Edges
+            for(let i=0; i<nodes.length; i++) {
+                let edgesOut = floor(random(1, 3));
+                let candidates = nodes.slice(i+1, min(nodes.length, i+1+7)); // Connect to slightly nearby nodes on the right
+                candidates = shuffle(candidates);
+                
+                for(let j=0; j<min(edgesOut, candidates.length); j++) {
+                    edges.push({
+                        source: nodes[i],
+                        target: candidates[j],
+                        state: 'IDLE' // IDLE, ACTIVE, DONE
+                    });
+                }
+            }
+
+            // Generate Precalculated DFS History
+            generateDFSHistory();
+        }
+
+        // --- CORE ALGORITHM: DFS & Topo Sort ---
+        function generateDFSHistory() {
+            let visited = new Set();
+            let visiting = new Set();
+            let topoCount = 1;
+            
+            // Snapshot helper
+            const record = (msg) => {
+                let snapshotNodes = nodes.map(n => ({...n}));
+                let snapshotEdges = edges.map(e => ({...e}));
+                historyQueue.push({ nodes: snapshotNodes, edges: snapshotEdges, msg: msg });
+            };
+            
+            record("초기 상태");
+
+            // We start DFS from the "Output" node, which is the right-most node in our visual
+            // In microgpt.py, build_topo starts from Loss.
+            let rootNode = nodes[nodes.length - 1]; // Right-most
+            
+            function dfs(n) {
+                if(visited.has(n)) return;
+                
+                visiting.add(n);
+                n.state = 'VISITING';
+                record(`탐색 시작: 노드 ${n.id}`);
+
+                // Find children (edges where source is the child, target is current)
+                // Wait, in microgpt, _children are the parents of the calculation. 
+                // So if Loss is on the right, it depends on its left neighbors.
+                // Our edges go Left->Right. So 'children' of a right node are the nodes pointing INTO it.
+                // (e.g. c = a + b, edges: a->c, b->c. 'c'._children is [a, b].)
+                let dependencies = edges.filter(e => e.target === n).map(e => e.source);
+                
+                for(let child of dependencies) {
+                    // find edge
+                    let e = edges.find(ed => ed.source === child && ed.target === n);
+                    if(e) {
+                        e.state = 'ACTIVE';
+                        record(`의존성 확인: ${n.id} -> ${child.id}`);
+                    }
+                    
+                    if(!visited.has(child) && !visiting.has(child)) {
+                        dfs(child);
+                    }
+                    
+                    if(e) {
+                        e.state = 'DONE';
+                        record(`의존성 만족: ${n.id} -> ${child.id}`);
+                    }
+                }
+                
+                visiting.delete(n);
+                visited.add(n);
+                n.state = 'SORTED';
+                n.order = topoCount++;
+                record(`[정렬 완료] 노드 ${n.id}에 위상 순번 ${n.order} 부여됨!`);
+            }
+            
+            dfs(rootNode);
+        }
+
+        function startDFS() {
+            if(!isPlaying && historyQueue.length > 0) {
+                isPlaying = true;
+                isPaused = false;
+                lastUpdateTime = millis();
+                document.getElementById('btn-pause').innerText = "|| 일시정지";
+                updateStatus("오케스트레이션 실행 중...");
+            }
+        }
+
+        function togglePause() {
+            if(isPlaying) {
+                isPaused = !isPaused;
+                document.getElementById('btn-pause').innerText = isPaused ? "▶ 계속" : "|| 일시정지";
+                updateStatus(isPaused ? "일시정지됨" : "오케스트레이션 실행 중...");
+            }
+        }
+
+        function restartDFS() {
+            currentFrame = 0;
+            isPlaying = false;
+            isPaused = false;
+            document.getElementById('btn-pause').innerText = "|| 일시정지";
+            updateStatus("초기화됨. DFS 시작을 누르세요.");
+        }
+
+        function updateStatus(msg) {
+            let el = document.getElementById('status-bar');
+            if(el) {
+                el.innerText = `상태: ${msg}`;
+            }
+        }
+
+        function draw() {
+            background(color(20, 20, 19)); // Dark bg
+            
+            let drawNodes = nodes;
+            let drawEdges = edges;
+
+            // Handle Animation Timing
+            if (isPlaying && !isPaused) {
+                // Determine wait time based on speed setting
+                let waitTime = map(params.animSpeed, 1, 10, 1500, 100);
+                
+                if (millis() - lastUpdateTime > waitTime) {
+                    currentFrame++;
+                    lastUpdateTime = millis();
+                    
+                    if (currentFrame >= historyQueue.length) {
+                        currentFrame = historyQueue.length - 1;
+                        isPlaying = false; // complete
+                        updateStatus("위상 정렬 완료! (모든 노드 방문)");
+                    } else {
+                        updateStatus(historyQueue[currentFrame].msg);
+                    }
+                }
+            }
+            
+            // Use snapshot data if animating or finished
+            if (currentFrame > 0 && currentFrame < historyQueue.length) {
+                drawNodes = historyQueue[currentFrame].nodes;
+                drawEdges = historyQueue[currentFrame].edges;
+            } else if (currentFrame === 0) {
+                // Default drawn as initialized
+            }
+
+            // 1. Draw Edges
+            strokeWeight(2);
+            for(let e of drawEdges) {
+                if (e.state === 'ACTIVE') {
+                    stroke(params.colorPalette[0]); // Visiting color (Orange)
+                    drawingContext.setLineDash([5, 5]);
+                } else if (e.state === 'DONE') {
+                    stroke(70, 70, 70); // Faded
+                    drawingContext.setLineDash([]);
+                } else {
+                    stroke(50, 50, 50); // Idle
+                    drawingContext.setLineDash([]);
+                }
+
+                // Bezier curve edge
+                noFill();
+                bezier(e.source.x, e.source.y, 
+                       e.source.x + 50, e.source.y, 
+                       e.target.x - 50, e.target.y, 
+                       e.target.x, e.target.y);
+            }
+            drawingContext.setLineDash([]);
+
+            // 2. Draw Nodes
+            for(let n of drawNodes) {
+                let isLossNode = n === drawNodes[drawNodes.length - 1];
+                let radius = isLossNode ? 24 : 18;
+
+                // Determine Colors
+                let fillCol = color(30,30,30);
+                let strokeCol = color(80,80,80);
+                let textCol = color(150,150,150);
+                let shadow = 0;
+
+                if (n.state === 'VISITING') {
+                    fillCol = color(40,40,40);
+                    strokeCol = color(params.colorPalette[0]); // Orange
+                    textCol = color(255);
+                    shadow = 15;
+                    drawingContext.shadowColor = params.colorPalette[0];
+                } else if (n.state === 'SORTED') {
+                    fillCol = color(params.colorPalette[1]); // Blue
+                    strokeCol = color(255);
+                    textCol = color(20,20,19);
+                    shadow = 10;
+                    drawingContext.shadowColor = params.colorPalette[1];
+                }
+
+                drawingContext.shadowBlur = shadow;
+
+                fill(fillCol);
+                stroke(strokeCol);
+                strokeWeight(2);
+                if(isLossNode && n.state === 'UNVISITED') stroke(200, 50, 50); // Highlight start point
+
+                circle(n.x, n.y, radius * 2);
+
+                drawingContext.shadowBlur = 0;
+                
+                // Text
+                noStroke();
+                fill(textCol);
+                textAlign(CENTER, CENTER);
+                textSize(isLossNode ? 14 : 12);
+                text(n.id, n.x, n.y - 2);
+
+                // Draw order number if sorted
+                if (n.order > 0) {
+                    fill(255);
+                    textSize(12);
+                    let badgeX = n.x + radius * 0.8;
+                    let badgeY = n.y - radius * 0.8;
+                    
+                    // Badge circle
+                    fill(params.colorPalette[0]);
+                    circle(badgeX, badgeY, 18);
+                    
+                    fill(255);
+                    text(n.order, badgeX, badgeY);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+        function updateParam(paramName, value) {
+            params[paramName] = parseFloat(value);
+            document.getElementById(paramName + '-value').innerText = value;
+            
+            if (paramName === 'nodeCount') {
+                initializeSystem();
+            }
+        }
+
+        function updateColor(colorId, value) {
+            if (colorId === 'color1') params.colorPalette[0] = value;
+            if (colorId === 'color2') params.colorPalette[1] = value;
+            document.getElementById(colorId + '-value').innerText = value;
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 99999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+            
+            document.getElementById('nodeCount').value = params.nodeCount;
+            document.getElementById('nodeCount-value').textContent = params.nodeCount;
+            document.getElementById('animSpeed').value = params.animSpeed;
+            document.getElementById('animSpeed-value').textContent = params.animSpeed;
+            
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>

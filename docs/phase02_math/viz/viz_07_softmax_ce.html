@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소프트맥스 & 크로스 엔트로피 시뮬레이션</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; background-color: #f9fafb; color: #1f2937; }
+        .card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1 { font-size: 1.5rem; margin-top: 0; color: #111827; }
+        
+        .grid-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .controls { background: #f3f4f6; padding: 20px; border-radius: 8px; }
+        .control-group { margin-bottom: 16px; }
+        label { font-weight: 600; display: block; margin-bottom: 4px; }
+        input[type=range] { width: 100%; }
+        
+        .toggle-box { background: #e0e7ff; padding: 12px; border-radius: 6px; border: 1px dashed #6366f1; margin-top: 20px; }
+        .toggle-box label { font-weight: bold; color: #4f46e5; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        
+        .stages { display: flex; flex-direction: column; gap: 24px; }
+        .stage-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; position: relative; }
+        .stage-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 16px; color: #1f2937; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+        
+        .bars-container { display: flex; justify-content: space-around; align-items: flex-end; height: 120px; padding-bottom: 20px; }
+        .bar-col { display: flex; flex-direction: column; align-items: center; width: 60px; }
+        .bar { width: 40px; border-radius: 4px 4px 0 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 4px; font-weight: bold; font-size: 0.8rem; transition: all 0.2s; }
+        .bar-val { font-family: monospace; font-size: 0.9rem; margin-top: 8px; color: #4b5563; }
+        .bar-label { font-weight: bold; margin-top: 4px; }
+        
+        /* Bar Colors */
+        .color-0 { background-color: #fca5a5; } /* red */
+        .color-1 { background-color: #86efac; } /* green */
+        .color-2 { background-color: #93c5fd; } /* blue */
+        .target .color-0, .target .color-1, .target .color-2 { border: 3px solid #111827; font-weight: bold; }
+        
+        .loss-display { background: #fee2e2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; text-align: center; }
+        .loss-val { font-size: 2.5rem; font-weight: bold; color: #b91c1c; font-family: monospace; }
+        
+        .target-selector { display: flex; gap: 10px; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>소프트맥스 & 크로스 엔트로피 시각화</h1>
+        <p>모델의 원시 점수(Raw Logits)가 어떻게 확률(%)로 정규화되고, 정답 클래스에 따라 오차가 생기는지 체험하세요.</p>
+        
+        <div class="grid-layout">
+            <div class="controls">
+                <h3>1. 모델 출력 (Logits) 조절</h3>
+                <div class="control-group">
+                    <label>A 로짓: <span id="val-0">2.0</span></label>
+                    <input type="range" class="logit-slider" data-idx="0" min="-5" max="5" step="0.5" value="2.0">
+                </div>
+                <div class="control-group">
+                    <label>B 로짓: <span id="val-1">1.0</span></label>
+                    <input type="range" class="logit-slider" data-idx="1" min="-5" max="5" step="0.5" value="1.0">
+                </div>
+                <div class="control-group">
+                    <label>C 로짓: <span id="val-2">0.1</span></label>
+                    <input type="range" class="logit-slider" data-idx="2" min="-5" max="5" step="0.5" value="0.1">
+                </div>
+                
+                <h3 style="margin-top: 30px;">2. 정답(Target) 지정</h3>
+                <div class="target-selector">
+                    <label><input type="radio" name="target" value="0" checked> 클래스 A</label>
+                    <label><input type="radio" name="target" value="1"> 클래스 B</label>
+                    <label><input type="radio" name="target" value="2"> 클래스 C</label>
+                </div>
+                
+                <div class="toggle-box">
+                    <label>
+                        <input type="checkbox" id="chk-max-trick" checked>
+                        <span>안정성 트릭 (Max Subtraction) 켜기</span>
+                    </label>
+                    <p style="font-size: 0.8rem; color: #4b5563; margin-top: 8px; margin-bottom: 0;">
+                        체크를 해제하고 로짓을 극단적으로 올려보세요 (NaN/Infinity가 발생합니다).
+                    </p>
+                </div>
+            </div>
+            
+            <div class="stages">
+                <div class="stage-box">
+                    <div class="stage-title">Step 1. 지수 변환 (e^x) <span id="trick-info" style="font-size: 0.8rem; font-weight: normal; color: #6366f1;"></span></div>
+                    <div class="bars-container" id="stage-exp">
+                        <!-- generated by JS -->
+                    </div>
+                    <div style="text-align: right; font-weight: bold; font-family: monospace;">Sum = <span id="exp-total">0.0</span></div>
+                </div>
+                
+                <div class="stage-box">
+                    <div class="stage-title">Step 2. 확률로 정규화 (Softmax 확률)</div>
+                    <div class="bars-container" id="stage-prob">
+                        <!-- generated by JS -->
+                    </div>
+                </div>
+                
+                <div class="loss-display">
+                    <div>Step 3. 정답 예측에 대한 Cross-Entropy Loss <code>= -ln(P_target)</code></div>
+                    <div class="loss-val" id="final-loss">0.000</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sliders = document.querySelectorAll('.logit-slider');
+        const radios = document.querySelectorAll('input[name="target"]');
+        const chkTrick = document.getElementById('chk-max-trick');
+        
+        function updateAll() {
+            let logits = Array.from(sliders).map(s => parseFloat(s.value));
+            
+            // update labels
+            logits.forEach((l, i) => {
+                document.getElementById(`val-${i}`).innerText = l.toFixed(1);
+            });
+            
+            let useTrick = chkTrick.checked;
+            let targetIdx = parseInt(document.querySelector('input[name="target"]:checked').value);
+            
+            // Math
+            let maxLogit = Math.max(...logits);
+            document.getElementById('trick-info').innerText = useTrick ? `(최댓값 ${maxLogit.toFixed(1)} 차감하여 오버플로우 방지)` : `(그대로 계산)`;
+            
+            let exps = logits.map(x => useTrick ? Math.exp(x - maxLogit) : Math.exp(x));
+            let totalExp = exps.reduce((a, b) => a + b, 0);
+            let probs = exps.map(e => e / totalExp);
+            
+            let loss = -Math.log(probs[targetIdx]);
+            
+            // Render Exp Bars
+            let expHtml = '';
+            let maxExp = Math.max(...exps);
+            if (maxExp === 0 || !isFinite(maxExp)) maxExp = 1; // fallback
+            
+            exps.forEach((e, i) => {
+                let h = (e / maxExp) * 100;
+                let isTarget = (i === targetIdx) ? 'target' : '';
+                let labelCls = ['A', 'B', 'C'][i];
+                let dispText = isFinite(e) ? e.toFixed(2) : "Infinity";
+                
+                expHtml += `
+                <div class="bar-col ${isTarget}">
+                    <div class="bar color-${i}" style="height: ${Math.max(1, h)}%;"></div>
+                    <div class="bar-val">${dispText}</div>
+                    <div class="bar-label">${labelCls}</div>
+                </div>`;
+            });
+            document.getElementById('stage-exp').innerHTML = expHtml;
+            document.getElementById('exp-total').innerText = isFinite(totalExp) ? totalExp.toFixed(2) : "Infinity";
+            
+            // Render Prob Bars
+            let probHtml = '';
+            probs.forEach((p, i) => {
+                let h = p * 100;
+                let isTarget = (i === targetIdx) ? 'target' : '';
+                let labelCls = ['A', 'B', 'C'][i];
+                let dispText = isNaN(p) ? "NaN" : p.toFixed(3);
+                
+                probHtml += `
+                <div class="bar-col ${isTarget}">
+                    <div class="bar color-${i}" style="height: ${Math.max(1, h)}%;">${dispText === 'NaN' ? '' : (h).toFixed(0)+'%'}</div>
+                    <div class="bar-val">${dispText}</div>
+                    <div class="bar-label">${labelCls}</div>
+                </div>`;
+            });
+            document.getElementById('stage-prob').innerHTML = probHtml;
+            
+            // Render Loss
+            document.getElementById('final-loss').innerText = isNaN(loss) ? "NaN" : loss.toFixed(4);
+        }
+
+        sliders.forEach(s => s.addEventListener('input', updateAll));
+        radios.forEach(r => r.addEventListener('change', updateAll));
+        chkTrick.addEventListener('change', updateAll);
+        
+        updateAll();
+    </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+.agent/
+.env
+.playwright**/
+.vscode**/
+.venv**/

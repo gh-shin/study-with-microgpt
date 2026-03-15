@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>역전파 (Backward Pass) 시뮬레이션</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 40px);
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Seed Controls */
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button {
+            margin-bottom: 0;
+        }
+
+        /* Parameter Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Colors Section */
+        .color-group {
+            margin-bottom: 16px;
+        }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button.tertiary {
+            background: var(--anthropic-green);
+        }
+
+        .button.tertiary:hover {
+            background: #6b7b52;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            position: relative;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.05);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--anthropic-dark);
+        }
+
+        #canvas-container canvas {
+            display: block;
+            border-radius: 8px;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        #status-bar {
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--anthropic-light);
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            text-align: center;
+            border: 1px solid var(--anthropic-light-gray);
+            font-weight: bold;
+            color: var(--anthropic-dark);
+            height: 42px;
+        }
+
+        @media (max-width: 800px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <h1>역전파 (Backward)</h1>
+            <div class="subtitle">체인 룰을 따라 우측 오차(Loss)에서 거꾸로 타고 흐르는 분열과 증폭의 역류</div>
+
+            <!-- Seed Section -->
+            <div class="control-section">
+                <h3>생성 시드 (Seed)</h3>
+                <input type="number" id="seed-input" class="seed-input" value="1024" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← 이전</button>
+                    <button class="button secondary" onclick="nextSeed()">다음 →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ 랜덤 구조 생성</button>
+            </div>
+
+            <div id="status-bar">대기 중: 시작 버튼을 누르세요</div>
+
+            <!-- Actions Section -->
+            <div class="control-section" style="margin-top:16px;">
+                <h3>역전파 연산 제어</h3>
+                <div class="button-row">
+                    <button class="button tertiary" id="btn-start" onclick="triggerBackward()">▶ 역전파 (Loss=1) 방출</button>
+                </div>
+                <div class="button-row">
+                    <button class="button" onclick="resetGradients()">↺ 파티클 초기화</button>
+                </div>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>시뮬레이션 파라미터</h3>
+                
+                <div class="control-group">
+                    <label>역전파 신호 분열(증폭)량</label>
+                    <div class="slider-container">
+                        <input type="range" id="multiplier" min="1" max="5" step="1" value="2" oninput="updateParam('multiplier', this.value)">
+                        <span class="value-display" id="multiplier-value">2</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>역전파 흐름 속도</label>
+                    <div class="slider-container">
+                        <input type="range" id="flowSpeed" min="0.005" max="0.03" step="0.005" value="0.015" oninput="updateParam('flowSpeed', this.value)">
+                        <span class="value-display" id="flowSpeed-value">0.015</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>그래디언트 꼬리(Trail) 길이</label>
+                    <div class="slider-container">
+                        <input type="range" id="trailLength" min="5" max="30" step="1" value="15" oninput="updateParam('trailLength', this.value)">
+                        <span class="value-display" id="trailLength-value">15</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>색상 테마</h3>
+                <div class="color-group">
+                    <label>그래디언트(역전파) 에너지</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#6a9bcc" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#6a9bcc</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>누적된 그라디언트 노드</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#788c5d" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#788c5d</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div class="card">
+                <div id="canvas-container">
+                    <div class="loading">시각화 생성 중...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // GENERATIVE ART PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
+        let params = {
+            seed: 1024,
+            multiplier: 2,
+            flowSpeed: 0.015,
+            trailLength: 15,
+            colorPalette: ['#6a9bcc', '#788c5d', '#b0aea5'] // 0: Wave, 1: Node filled, 2: Edge idle
+        };
+
+        let defaultParams = {...params};
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // P5.JS GENERATIVE ART ALGORITHM
+        // ═══════════════════════════════════════════════════════════════════════
+        let nodes = [];
+        let edges = [];
+        let backwardQueue = []; // currently active gradient particles
+        
+        let cvsWidth = 900;
+        let cvsHeight = 700;
+
+        function setup() {
+            let canvas = createCanvas(cvsWidth, cvsHeight);
+            canvas.parent('canvas-container');
+            
+            initializeSystem();
+            
+            let loading = document.querySelector('.loading');
+            if(loading) loading.style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            nodes = [];
+            edges = [];
+            backwardQueue = [];
+
+            let depth = 6;
+            let layers = [];
+            let xPadding = 100;
+            let yPadding = 80;
+
+            // Generate DAG Topo Order from Left to Right
+            for(let i=0; i<depth; i++) {
+                let count = i === depth - 1 ? 1 : floor(random(3, 8));
+                if (i === 0) count = 8;
+                
+                layers.push([]);
+                
+                let stepY = count > 1 ? (cvsHeight - 2 * yPadding) / (count - 1) : 0;
+                
+                for(let j=0; j<count; j++) {
+                    let rx = map(i, 0, depth-1, xPadding, cvsWidth - xPadding);
+                    if(i>0 && i<depth-1) rx += random(-20, 20);
+                    
+                    let ry = count === 1 ? cvsHeight/2 : yPadding + j * stepY;
+                    if(count > 1) ry += random(-stepY*0.1, stepY*0.1);
+                    
+                    layers[i].push({
+                        id: `L${i}N${j}`,
+                        layer: i,
+                        x: rx,
+                        y: ry,
+                        gradCount: 0, // Accumulated gradient intensity
+                        pulse: 0
+                    });
+                }
+            }
+
+            // Create Edges
+            for(let i=0; i<depth-1; i++) {
+                for(let n1 of layers[i]) {
+                    // connect each node to 1-3 nodes in the next layer
+                    let targetCount = floor(random(1, 4));
+                    let targets = shuffle([...layers[i+1]]).slice(0, targetCount);
+                    
+                    for(let n2 of targets) {
+                        edges.push({ source: n1, target: n2 });
+                    }
+                }
+            }
+
+            for(let layer of layers) nodes = nodes.concat(layer);
+            
+            updateStatus("대기 중: 시작 버튼을 누르세요");
+        }
+
+        function triggerBackward() {
+            // Find the Loss node (Rightmost)
+            let lossNode = nodes[nodes.length - 1];
+            lossNode.pulse = 1.0;
+            lossNode.gradCount = 1;
+
+            // Spawn particles traveling LEFT (Backward)
+            // find edges flowing into this node
+            let incomingEdges = edges.filter(e => e.target === lossNode);
+            
+            for(let e of incomingEdges) {
+                // Number of particles depends on multiplier (Chain Rule branching)
+                for(let i=0; i<params.multiplier; i++) {
+                    backwardQueue.push(new BwdParticle(e, i * 0.15)); // staggered start
+                }
+            }
+            
+            updateStatus(`역전파 진행 중... (.grad += 1)`);
+        }
+
+        function resetGradients() {
+            backwardQueue = [];
+            for (let n of nodes) {
+                n.gradCount = 0;
+                n.pulse = 0;
+            }
+            updateStatus("초기화 됨. 다시 재생 가능합니다.");
+        }
+
+        function updateStatus(msg) {
+            let el = document.getElementById('status-bar');
+            if(el) {
+                el.innerText = msg;
+            }
+        }
+
+        function draw() {
+            // We want organic trails.
+            background(color(20, 20, 19, 60)); 
+            
+            // Draw Edges
+            strokeWeight(1.5);
+            for(let e of edges) {
+                stroke(50, 50, 50); // Idle
+                noFill();
+                bezier(e.source.x, e.source.y, 
+                       (e.source.x + e.target.x)/2, e.source.y, 
+                       (e.source.x + e.target.x)/2, e.target.y, 
+                       e.target.x, e.target.y);
+            }
+
+            blendMode(ADD);
+            
+            // Update and draw particles
+            for(let i = backwardQueue.length - 1; i >= 0; i--) {
+                let p = backwardQueue[i];
+                p.update();
+                p.display();
+                
+                if (p.isDead) {
+                    // Node receives gradient
+                    let n = p.edge.source;
+                    n.pulse = 1.0;
+                    n.gradCount += 1;
+                    
+                    // Propagate further LEFT
+                    let incomingEdges = edges.filter(e => e.target === n);
+                    if (incomingEdges.length > 0) {
+                        for(let e of incomingEdges) {
+                            for(let m=0; m<params.multiplier; m++) {
+                                backwardQueue.push(new BwdParticle(e, m * 0.1));
+                            }
+                        }
+                    } else {
+                        // Reached input node
+                        if (backwardQueue.length === 1) { // last particle
+                            updateStatus("역전파 및 그래디언트 누적 완료!");
+                        }
+                    }
+                    
+                    backwardQueue.splice(i, 1);
+                }
+            }
+            
+            blendMode(BLEND);
+
+            // Draw Nodes
+            for(let n of nodes) {
+                if (n.pulse > 0) n.pulse -= 0.04;
+                
+                let baseRadius = 14;
+                if (n.layer === 5) baseRadius = 24; // Loss node is bigger
+                let currentRadius = baseRadius + (n.pulse * baseRadius * 0.5) + constrain(n.gradCount, 0, 10);
+                
+                // Color based on accumulated gradient
+                let fillCol = color(30, 30, 30);
+                let outlineCol = color(80, 80, 80);
+                
+                if (n.gradCount > 0) {
+                    // Lerp towards the green "Accumulated" color based on gradCount
+                    let factor = constrain(n.gradCount / 10.0, 0, 1);
+                    fillCol = lerpColor(color(40,40,40), color(params.colorPalette[1]), factor);
+                    outlineCol = color(params.colorPalette[1]);
+                }
+                
+                if (n.pulse > 0) {
+                    // Flash with Blue (Gradient wave color)
+                    fillCol = lerpColor(fillCol, color(params.colorPalette[0]), n.pulse);
+                    drawingContext.shadowBlur = 20 * n.pulse;
+                    drawingContext.shadowColor = params.colorPalette[0];
+                } else if (n.gradCount > 0) {
+                    drawingContext.shadowBlur = constrain(n.gradCount * 2, 0, 15);
+                    drawingContext.shadowColor = params.colorPalette[1];
+                } else {
+                    drawingContext.shadowBlur = 0;
+                }
+                
+                fill(fillCol);
+                stroke(outlineCol);
+                strokeWeight(2);
+                circle(n.x, n.y, currentRadius * 2);
+                
+                drawingContext.shadowBlur = 0;
+                
+                // Show grad count text if available
+                if (n.gradCount > 0 && n.layer !== 5) {
+                    noStroke();
+                    fill(255);
+                    textSize(10);
+                    textAlign(CENTER, CENTER);
+                    text(n.gradCount, n.x, n.y);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // PARTICLE SYSTEM (BACKWARD)
+        // ═══════════════════════════════════════════════════════════════════════
+        class BwdParticle {
+            constructor(edge, delay) {
+                this.edge = edge;
+                this.t = 1.0; // Start at target (Right)
+                this.delay = delay; // Delay before moving
+                this.speed = params.flowSpeed * random(0.8, 1.2);
+                this.isDead = false;
+                this.history = []; // for trails
+            }
+            
+            update() {
+                if (this.delay > 0) {
+                    this.delay -= this.speed;
+                    return;
+                }
+                
+                this.t -= this.speed; // Move backwards
+                
+                // Record history
+                let sx = this.edge.source.x;
+                let sy = this.edge.source.y;
+                let tx = this.edge.target.x;
+                let ty = this.edge.target.y;
+                let cx1 = (sx + tx) / 2;
+                let cx2 = (sx + tx) / 2;
+                
+                let x = bezierPoint(sx, cx1, cx2, tx, this.t);
+                let y = bezierPoint(sy, sy, ty, ty, this.t); // Use full bezier parameters
+                y = bezierPoint(sy, sy, ty, ty, this.t); 
+                // correct bezier for edges:
+                // bezier(e.source.x, e.source.y, (e.source.x + e.target.x)/2, e.source.y, (e.source.x + e.target.x)/2, e.target.y, e.target.x, e.target.y);
+                x = bezierPoint(sx, (sx+tx)/2, (sx+tx)/2, tx, this.t);
+                y = bezierPoint(sy, sy, ty, ty, this.t);
+                
+                this.history.push({x: x, y: y});
+                if (this.history.length > params.trailLength) {
+                    this.history.shift();
+                }
+                
+                if (this.t <= 0.0) {
+                    this.isDead = true;
+                }
+            }
+            
+            display() {
+                if (this.delay > 0) return;
+                
+                noStroke();
+                let col = color(params.colorPalette[0]);
+                
+                for(let i=0; i<this.history.length; i++) {
+                    let pos = this.history[i];
+                    let alpha = map(i, 0, this.history.length, 0, 255);
+                    fill(red(col), green(col), blue(col), alpha);
+                    let size = map(i, 0, this.history.length, 2, 8);
+                    circle(pos.x, pos.y, size);
+                }
+                
+                if (this.history.length > 0) {
+                    drawingContext.shadowBlur = 10;
+                    drawingContext.shadowColor = params.colorPalette[0];
+                    let head = this.history[this.history.length - 1];
+                    fill(255); // bright head
+                    circle(head.x, head.y, 6);
+                    drawingContext.shadowBlur = 0;
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+        function updateParam(paramName, value) {
+            params[paramName] = parseFloat(value);
+            document.getElementById(paramName + '-value').innerText = value;
+        }
+
+        function updateColor(colorId, value) {
+            if (colorId === 'color1') params.colorPalette[0] = value;
+            if (colorId === 'color2') params.colorPalette[1] = value;
+            document.getElementById(colorId + '-value').innerText = value;
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 99999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+            
+            document.getElementById('multiplier').value = params.multiplier;
+            document.getElementById('multiplier-value').textContent = params.multiplier;
+            document.getElementById('flowSpeed').value = params.flowSpeed;
+            document.getElementById('flowSpeed-value').textContent = params.flowSpeed;
+            document.getElementById('trailLength').value = params.trailLength;
+            document.getElementById('trailLength-value').textContent = params.trailLength;
+            
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>

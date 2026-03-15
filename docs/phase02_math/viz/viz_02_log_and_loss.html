@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>크로스 엔트로피 손실 체험</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f9fafb; color: #1f2937; }
+        .card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1 { font-size: 1.5rem; margin-top: 0; color: #111827; }
+        .control-group { margin-bottom: 20px; }
+        label { font-weight: 600; display: block; margin-bottom: 8px; }
+        input[type=range] { width: 100%; }
+        .math-box { background: #f3f4f6; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 1.1rem; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .loss-value { font-size: 2rem; font-weight: bold; color: #ef4444; }
+        .loss-badge { padding: 4px 8px; border-radius: 4px; color: white; display: inline-block; font-size: 0.9rem; font-weight: bold; }
+        canvas { width: 100%; height: 350px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>크로스 엔트로피 손실: -ln(p)</h1>
+        <p>모델이 정답을 맞출 확률 <code>p</code>에 따른 손실(Loss) 폭발을 확인해보세요.</p>
+        
+        <div class="control-group">
+            <label>정답 클래스 할당 확률 (p): <span id="p-val">0.50</span> (50%)</label>
+            <input type="range" id="p-slider" min="0.001" max="1.0" step="0.001" value="0.5">
+        </div>
+
+        <div class="math-box">
+            <div>
+                <strong>[손실 계산]</strong><br>
+                Loss = -ln(p)<br>
+                Loss = -ln(<span id="eq-p">0.50</span>)
+            </div>
+            <div style="text-align: right;">
+                <span class="loss-badge" id="loss-badge">중간 손실</span><br>
+                <div class="loss-value" id="res-loss">0.693</div>
+            </div>
+        </div>
+
+        <canvas id="graphCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * 2;
+            canvas.height = 350 * 2;
+            ctx.scale(2, 2);
+            draw();
+        }
+
+        const pSlider = document.getElementById('p-slider');
+        
+        function updateUI() {
+            let p = parseFloat(pSlider.value);
+            document.getElementById('p-val').innerText = p.toFixed(3);
+            document.getElementById('eq-p').innerText = p.toFixed(3);
+            
+            let loss = -Math.log(p);
+            document.getElementById('res-loss').innerText = loss.toFixed(3);
+            
+            let badge = document.getElementById('loss-badge');
+            if(p >= 0.9) { badge.style.backgroundColor = '#22c55e'; badge.innerText = "아주 좋음 (현실적 0)"; }
+            else if(p >= 0.5) { badge.style.backgroundColor = '#eab308'; badge.innerText = "조금 아쉬움"; }
+            else if(p >= 0.1) { badge.style.backgroundColor = '#f97316'; badge.innerText = "나쁨 (학습 필요)"; }
+            else { badge.style.backgroundColor = '#ef4444'; badge.innerText = "손실 극대화 (벌칙 부여!)"; }
+            
+            draw();
+        }
+
+        function draw() {
+            const width = canvas.width / 2;
+            const height = canvas.height / 2;
+            ctx.clearRect(0, 0, width, height);
+            
+            const xMin = 0, xMax = 1.05;
+            const yMin = -0.5, yMax = 7;
+            
+            function toScreen(x, y) {
+                return {
+                    sx: (x - xMin) / (xMax - xMin) * width,
+                    sy: height - (y - yMin) / (yMax - yMin) * height
+                };
+            }
+            
+            // Grid and axes
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            const origin = toScreen(0, 0);
+            ctx.moveTo(origin.sx, 0); ctx.lineTo(origin.sx, height);
+            ctx.moveTo(0, origin.sy); ctx.lineTo(width, origin.sy);
+            ctx.stroke();
+            
+            // Curve -ln(x)
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            let first = true;
+            for (let px = origin.sx + 1; px <= width; px += 2) {
+                let x = xMin + (px / width) * (xMax - xMin);
+                if (x <= 0) continue;
+                let y = -Math.log(x);
+                let pt = toScreen(x, y);
+                if (first) { ctx.moveTo(pt.sx, pt.sy); first = false; }
+                else { ctx.lineTo(pt.sx, pt.sy); }
+            }
+            ctx.stroke();
+            
+            let p = parseFloat(pSlider.value);
+            let loss = -Math.log(p);
+            let cpt = toScreen(p, loss);
+            
+            // Guidelines
+            ctx.strokeStyle = '#9ca3af';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(cpt.sx, origin.sy); ctx.lineTo(cpt.sx, cpt.sy);
+            ctx.moveTo(origin.sx, cpt.sy); ctx.lineTo(cpt.sx, cpt.sy);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Point
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(cpt.sx, cpt.sy, 6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        pSlider.addEventListener('input', updateUI);
+        
+        setTimeout(() => { resizeCanvas(); updateUI(); }, 100);
+    </script>
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>비선형성 (ReLU) 차단 효과</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 40px);
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Parameter Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Colors Section */
+        .color-group {
+            margin-bottom: 16px;
+        }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            position: relative;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.05);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--anthropic-dark);
+        }
+
+        #canvas-container canvas {
+            display: block;
+            border-radius: 8px;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <h1>ReLU 비선형성</h1>
+            <div class="subtitle">"임계선을 넘는 자와 소멸하는 자". 0 이하의 값은 차단되어 비선형성을 만들어냅니다.</div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>필터 파라미터</h3>
+                
+                <div class="control-group">
+                    <label>임계선 기준 (Bias/Threshold)</label>
+                    <div class="slider-container">
+                        <input type="range" id="threshold" min="-100" max="100" step="5" value="0" oninput="updateParam('threshold', this.value)">
+                        <span class="value-display" id="threshold-value">0</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>파티클 생성률 (Density)</label>
+                    <div class="slider-container">
+                        <input type="range" id="density" min="1" max="10" step="1" value="5" oninput="updateParam('density', this.value)">
+                        <span class="value-display" id="density-value">5</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>파티클 낙하 속도</label>
+                    <div class="slider-container">
+                        <input type="range" id="speed" min="2" max="12" step="1" value="6" oninput="updateParam('speed', this.value)">
+                        <span class="value-display" id="speed-value">6</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>색상 테마</h3>
+                <div class="color-group">
+                    <label>통과한 생존 파티클 (x > 0)</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#d97757" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#d97757</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>소멸된 파티클 (x <= 0)</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#4a4a46" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#4a4a46</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="control-section">
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">옵션 초기화</button>
+                    <button class="button secondary" onclick="particles=[]">화면 지우기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div class="card">
+                <div id="canvas-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // GENERATIVE ART PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
+        let params = {
+            threshold: 0,
+            density: 5,
+            speed: 6,
+            colorPalette: ['#d97757', '#4a4a46', '#2a2a29'] // 0: Alive, 1: Dead/Block, 2: Filter Line
+        };
+
+        let defaultParams = {...params};
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // P5.JS ALGORITHM
+        // ═══════════════════════════════════════════════════════════════════════
+        let particles = [];
+        let cvsWidth = 900;
+        let cvsHeight = 700;
+        let filterY; // Y position of the ReLU filter
+
+        function setup() {
+            let canvas = createCanvas(cvsWidth, cvsHeight);
+            canvas.parent('canvas-container');
+            filterY = cvsHeight / 2;
+        }
+
+        function draw() {
+            background(color(20, 20, 19, 80)); // Trails
+            
+            // Draw ReLU Filter Area
+            let actualThresholdX = cvsWidth / 2 + params.threshold;
+
+            // Blocked area (Left of threshold)
+            noStroke();
+            fill(15, 15, 14, 200);
+            rect(0, filterY, actualThresholdX, cvsHeight / 2);
+
+            // Pass area (Right of threshold)
+            fill(30, 30, 28, 100);
+            rect(actualThresholdX, filterY, cvsWidth - actualThresholdX, cvsHeight / 2);
+            
+            // Draw Filter Line
+            stroke(params.colorPalette[2]);
+            strokeWeight(2);
+            line(0, filterY, cvsWidth, filterY);
+            
+            // Threshold indicator
+            stroke(params.colorPalette[0]);
+            strokeWeight(3);
+            drawingContext.setLineDash([5, 5]);
+            line(actualThresholdX, 0, actualThresholdX, cvsHeight);
+            drawingContext.setLineDash([]);
+            
+            noStroke();
+            fill(params.colorPalette[0]);
+            textSize(12);
+            textAlign(CENTER, BOTTOM);
+            text("Threshold x=0", actualThresholdX, filterY - 10);
+            
+            text("x < 0 (Blocked)", actualThresholdX / 2, filterY + 30);
+            text("x > 0 (Passed)", actualThresholdX + (cvsWidth - actualThresholdX)/2, filterY + 30);
+
+            // Spawn Particles
+            if (random(10) < params.density) {
+                particles.push(new ReLU_Particle());
+            }
+
+            // Update and display particles
+            blendMode(ADD);
+            for(let i=particles.length-1; i>=0; i--) {
+                let p = particles[i];
+                p.update(actualThresholdX);
+                p.display();
+                
+                if (p.y > cvsHeight + 50 || p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+            blendMode(BLEND);
+        }
+
+        class ReLU_Particle {
+            constructor() {
+                // Spawn with random x
+                this.x = random(50, cvsWidth - 50);
+                this.y = -20; // start above screen
+                this.baseSpeed = params.speed * random(0.8, 1.2);
+                this.speedY = this.baseSpeed;
+                this.size = random(4, 10);
+                this.state = 'FALLING'; // FALLING, PASSED, DEAD
+                this.alpha = 255;
+            }
+
+            update(threshX) {
+                this.y += this.speedY;
+
+                // Hit the filter
+                if (this.state === 'FALLING' && this.y >= filterY) {
+                    if (this.x < threshX) {
+                        this.state = 'DEAD';
+                        this.speedY = 0; // stop falling
+                    } else {
+                        this.state = 'PASSED';
+                        // Accelerate slightly after passing?
+                        this.speedY *= 1.2;
+                    }
+                }
+
+                if (this.state === 'DEAD') {
+                    this.alpha -= 5; // fade out quickly
+                } else if (this.state === 'PASSED') {
+                    // slight horizontal drift based on distance from threshold
+                    let dist = this.x - threshX;
+                    this.x += dist * 0.005; 
+                }
+            }
+
+            display() {
+                let col;
+                let shadow = 0;
+                
+                if (this.state === 'FALLING') {
+                    col = color(200, 200, 200, this.alpha);
+                    shadow = 10;
+                    drawingContext.shadowColor = 'white';
+                } else if (this.state === 'PASSED') {
+                    col = color(params.colorPalette[0]);
+                    col.setAlpha(this.alpha);
+                    shadow = 15;
+                    drawingContext.shadowColor = params.colorPalette[0];
+                } else if (this.state === 'DEAD') {
+                    // dead color
+                    col = color(params.colorPalette[1]);
+                    col.setAlpha(this.alpha);
+                    shadow = 0;
+                }
+
+                noStroke();
+                fill(col);
+                drawingContext.shadowBlur = shadow;
+                circle(this.x, this.y, this.size);
+                
+                // bright core for passed ones
+                if(this.state === 'PASSED') {
+                    fill(255, 255, 255, this.alpha);
+                    circle(this.x, this.y, this.size * 0.4);
+                }
+                
+                drawingContext.shadowBlur = 0;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+        function updateParam(paramName, value) {
+            params[paramName] = parseFloat(value);
+            document.getElementById(paramName + '-value').innerText = value;
+        }
+
+        function updateColor(colorId, value) {
+            if (colorId === 'color1') params.colorPalette[0] = value;
+            if (colorId === 'color2') params.colorPalette[1] = value;
+            document.getElementById(colorId + '-value').innerText = value;
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+            
+            ['threshold', 'density', 'speed'].forEach(p => {
+                document.getElementById(p).value = params[p];
+                document.getElementById(p + '-value').textContent = params[p];
+            });
+            
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+        }
+    </script>
+</body>
+</html>

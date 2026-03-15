@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>순전파 DAG (Forward Pass) 체험</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 40px);
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Seed Controls */
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button {
+            margin-bottom: 0;
+        }
+
+        /* Parameter Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Colors Section */
+        .color-group {
+            margin-bottom: 16px;
+        }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button.tertiary {
+            background: var(--anthropic-green);
+        }
+
+        .button.tertiary:hover {
+            background: #6b7b52;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            position: relative;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.05);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--anthropic-dark);
+        }
+
+        #canvas-container canvas {
+            display: block;
+            border-radius: 8px;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        @media (max-width: 800px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: none;
+            }
+
+            .card {
+                aspect-ratio: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <h1>계산 그래프 (Forward DAG)</h1>
+            <div class="subtitle">트리 구조의 유기적 네트워크를 따라 전파되는 빛의 파티클 시뮬레이션</div>
+
+            <!-- Seed Section -->
+            <div class="control-section">
+                <h3>생성 시드 (Seed)</h3>
+                <input type="number" id="seed-input" class="seed-input" value="4000" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← 이전</button>
+                    <button class="button secondary" onclick="nextSeed()">다음 →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ 랜덤 구조 생성</button>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>그래프 파라미터</h3>
+                
+                <div class="control-group">
+                    <label>노드 밀도 (입력 노드 수)</label>
+                    <div class="slider-container">
+                        <input type="range" id="inputDensity" min="3" max="15" step="1" value="8" oninput="updateParam('inputDensity', this.value)">
+                        <span class="value-display" id="inputDensity-value">8</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>계층 깊이 (Depth)</label>
+                    <div class="slider-container">
+                        <input type="range" id="depth" min="3" max="10" step="1" value="6" oninput="updateParam('depth', this.value)">
+                        <span class="value-display" id="depth-value">6</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>데이터 흐름 속도</label>
+                    <div class="slider-container">
+                        <input type="range" id="flowSpeed" min="1" max="15" step="1" value="5" oninput="updateParam('flowSpeed', this.value)">
+                        <span class="value-display" id="flowSpeed-value">5</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>입자 방출률 (Emission)</label>
+                    <div class="slider-container">
+                        <input type="range" id="emissionRate" min="0.05" max="1.0" step="0.05" value="0.3" oninput="updateParam('emissionRate', this.value)">
+                        <span class="value-display" id="emissionRate-value">0.3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>색상 테마</h3>
+                <div class="color-group">
+                    <label>메인 신호 색상</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#d97757" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#d97757</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>엣지 연결선 색상</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#4a4a46" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#4a4a46</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="control-section">
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">옵션 초기화</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div class="card">
+                <div id="canvas-container">
+                    <div class="loading">시각화 생성 중...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // GENERATIVE ART PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
+        let params = {
+            seed: 4000,
+            inputDensity: 8,
+            depth: 6,
+            flowSpeed: 5,
+            emissionRate: 0.3,
+            colorPalette: ['#d97757', '#4a4a46', '#faf9f5']
+        };
+
+        let defaultParams = {...params};
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // P5.JS GENERATIVE ART ALGORITHM
+        // ═══════════════════════════════════════════════════════════════════════
+        let nodes = [];
+        let edges = [];
+        let particles = [];
+        
+        let cvsWidth = 900;
+        let cvsHeight = 700;
+
+        function setup() {
+            let canvas = createCanvas(cvsWidth, cvsHeight);
+            canvas.parent('canvas-container');
+            
+            initializeSystem();
+            
+            let loading = document.querySelector('.loading');
+            if(loading) loading.style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            nodes = [];
+            edges = [];
+            particles = [];
+
+            let depth = params.depth;
+            let numInputs = params.inputDensity;
+            
+            // X-spacing and padding
+            let xPadding = 80;
+            let yPadding = 80;
+            
+            let layers = [];
+            for(let i = 0; i < depth; i++) {
+                // Nodes count decreases generally toward the output (Loss)
+                let count;
+                if (i === 0) count = numInputs;
+                else if (i === depth - 1) count = 1;
+                else count = constrain(floor(random(numInputs * 0.4, numInputs * 0.8)), 2, numInputs);
+                
+                layers.push([]);
+                
+                // Distribute Y uniformly
+                let availableHeight = cvsHeight - 2 * yPadding;
+                let stepY = count > 1 ? availableHeight / (count - 1) : 0;
+                
+                for(let j = 0; j < count; j++) {
+                    let rx = map(i, 0, depth-1, xPadding, cvsWidth - xPadding);
+                    // Add slight noise to x for organic feel
+                    if(i > 0 && i < depth-1) {
+                        rx += random(-20, 20);
+                    }
+                    
+                    let ry = count === 1 ? cvsHeight/2 : yPadding + j * stepY;
+                    if(i > 0 && i < depth-1) {
+                        ry += random(-stepY*0.2, stepY*0.2); // subtle y jitter
+                    }
+                    
+                    let n = {
+                        id: `${i}-${j}`,
+                        layer: i,
+                        x: rx,
+                        y: ry,
+                        pulse: 0,
+                        radius: i === depth-1 ? 25 : random(12, 18),
+                        isTarget: i === depth-1
+                    };
+                    layers[i].push(n);
+                }
+            }
+
+            // Create Edges (DAG constraint guarantees no backward links)
+            for(let i = 0; i < depth - 1; i++) {
+                for(let n1 of layers[i]) {
+                    // Connect to 1 or 2 nodes in the very next layer
+                    let targetCount = floor(random(1, 4)); // up to 3 connections
+                    let targets = shuffle([...layers[i+1]]).slice(0, targetCount);
+                    
+                    for(let n2 of targets) {
+                        edges.push({ source: n1, target: n2, active: 0 });
+                    }
+                }
+            }
+            
+            // Ensure no orphans in subsequent layers by connecting them back if needed
+            for(let i = 1; i < depth; i++) {
+                for(let n2 of layers[i]) {
+                    let hasParent = edges.some(e => e.target === n2);
+                    if(!hasParent) {
+                        // connect randomly from previous layer
+                        let n1 = random(layers[i-1]);
+                        edges.push({ source: n1, target: n2, active: 0 });
+                    }
+                }
+            }
+
+            // Flatten
+            for(let layer of layers) {
+                nodes = nodes.concat(layer);
+            }
+        }
+
+        function draw() {
+            background(color(20, 20, 19, 40)); // slight trail effect
+            
+            blendMode(ADD);
+
+            // Emit new particles from layer 0
+            if (random(1.0) < params.emissionRate) {
+                let inputNodes = nodes.filter(n => n.layer === 0);
+                if (inputNodes.length > 0) {
+                    let startNode = random(inputNodes);
+                    // Find an edge
+                    let outEdges = edges.filter(e => e.source === startNode);
+                    if (outEdges.length > 0) {
+                        let chosenEdge = random(outEdges);
+                        particles.push(new Particle(chosenEdge));
+                        startNode.pulse = 1.0;
+                    }
+                }
+            }
+
+            // Draw edges
+            blendMode(BLEND);
+            strokeWeight(1.5);
+            for(let e of edges) {
+                let c = color(params.colorPalette[1]);
+                if (e.active > 0) {
+                    // Edge glowing effect
+                    let glow = lerpColor(c, color(params.colorPalette[0]), e.active);
+                    stroke(glow);
+                    e.active -= 0.05; // fade out
+                } else {
+                    stroke(c);
+                }
+                
+                // Draw curved connections
+                noFill();
+                bezier(e.source.x, e.source.y, 
+                       (e.source.x + e.target.x)/2, e.source.y, 
+                       (e.source.x + e.target.x)/2, e.target.y, 
+                       e.target.x, e.target.y);
+            }
+
+            blendMode(ADD);
+            // Update and draw particles
+            for(let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.update();
+                p.display();
+                
+                if (p.isDead) {
+                    // Reached target node
+                    p.edge.target.pulse = 1.0;
+                    p.edge.active = 1.0;
+                    
+                    // Propagate further if not at the end
+                    let outEdges = edges.filter(e => e.source === p.edge.target);
+                    if (outEdges.length > 0) {
+                        // Multiply/Branch out
+                        if (random() > 0.2) {
+                            let nextEdge = random(outEdges);
+                            particles.push(new Particle(nextEdge));
+                        }
+                    }
+                    particles.splice(i, 1);
+                }
+            }
+            
+            blendMode(BLEND);
+
+            // Draw nodes
+            for(let n of nodes) {
+                if (n.pulse > 0) {
+                    n.pulse -= 0.05;
+                }
+                let baseRadius = n.radius;
+                let currentRadius = baseRadius + (n.pulse * baseRadius * 0.8);
+                
+                noStroke();
+                // Base node color
+                fill(40, 40, 40);
+                circle(n.x, n.y, currentRadius * 1.5);
+                
+                // Inner color
+                let col = color(params.colorPalette[2]);
+                if (n.pulse > 0) {
+                    let pulseCol = color(params.colorPalette[0]);
+                    col = lerpColor(col, pulseCol, n.pulse);
+                    
+                    // Outer glow
+                    drawingContext.shadowBlur = 20 * n.pulse;
+                    drawingContext.shadowColor = params.colorPalette[0];
+                } else {
+                    drawingContext.shadowBlur = 0;
+                }
+                
+                if (n.isTarget) {
+                    // The final Loss node
+                    stroke(params.colorPalette[0]);
+                    strokeWeight(3);
+                }
+                
+                fill(col);
+                circle(n.x, n.y, currentRadius);
+                
+                drawingContext.shadowBlur = 0;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // PARTICLE SYSTEM
+        // ═══════════════════════════════════════════════════════════════════════
+        class Particle {
+            constructor(edge) {
+                this.edge = edge;
+                this.t = 0; // progress from 0 to 1
+                this.speed = params.flowSpeed * 0.005 * random(0.8, 1.2);
+                this.isDead = false;
+                this.size = random(4, 8);
+                this.col = color(params.colorPalette[0]);
+            }
+            
+            update() {
+                this.t += this.speed;
+                if (this.t >= 1.0) {
+                    this.isDead = true;
+                }
+            }
+            
+            display() {
+                let sx = this.edge.source.x;
+                let sy = this.edge.source.y;
+                let tx = this.edge.target.x;
+                let ty = this.edge.target.y;
+                
+                let cx1 = (sx + tx) / 2;
+                let cy1 = sy;
+                let cx2 = (sx + tx) / 2;
+                let cy2 = ty;
+                
+                let x = bezierPoint(sx, cx1, cx2, tx, this.t);
+                let y = bezierPoint(sy, cy1, cy2, ty, this.t);
+                
+                noStroke();
+                fill(red(this.col), green(this.col), blue(this.col), 200);
+                
+                // Trailing glow
+                drawingContext.shadowBlur = 15;
+                drawingContext.shadowColor = params.colorPalette[0];
+                circle(x, y, this.size);
+                drawingContext.shadowBlur = 0;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateParam(paramName, value) {
+            params[paramName] = parseFloat(value);
+            document.getElementById(paramName + '-value').innerText = value;
+            
+            // If structural params change, regenerate the graph
+            if (paramName === 'inputDensity' || paramName === 'depth') {
+                initializeSystem();
+            }
+        }
+
+        function updateColor(colorId, value) {
+            if (colorId === 'color1') params.colorPalette[0] = value;
+            if (colorId === 'color2') params.colorPalette[1] = value;
+            document.getElementById(colorId + '-value').innerText = value;
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 99999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+            
+            document.getElementById('inputDensity').value = params.inputDensity;
+            document.getElementById('inputDensity-value').textContent = params.inputDensity;
+            document.getElementById('depth').value = params.depth;
+            document.getElementById('depth-value').textContent = params.depth;
+            document.getElementById('flowSpeed').value = params.flowSpeed;
+            document.getElementById('flowSpeed-value').textContent = params.flowSpeed;
+            document.getElementById('emissionRate').value = params.emissionRate;
+            document.getElementById('emissionRate-value').textContent = params.emissionRate;
+            
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>

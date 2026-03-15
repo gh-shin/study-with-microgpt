@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>덧셈의 편미분 (f = x + y)</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f9fafb; color: #1f2937; }
+        .card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1 { font-size: 1.5rem; margin-top: 0; color: #111827; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .control-group { display: flex; flex-direction: column; }
+        label { font-weight: 600; margin-bottom: 8px; }
+        input[type=range] { width: 100%; }
+        .math-box { background: #f3f4f6; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 1.1rem; margin-bottom: 20px; }
+        
+        .bar-container { display: flex; align-items: flex-end; justify-content: space-around; height: 300px; padding: 20px 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px;}
+        .bar-wrapper { display: flex; flex-direction: column; align-items: center; width: 80px; }
+        .bar { width: 60px; border-radius: 4px 4px 0 0; transition: height 0.1s linear; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 8px; color: white; font-weight: bold; }
+        .bar.x { background-color: #3b82f6; }
+        .bar.y { background-color: #10b981; }
+        .bar.f { background-color: #8b5cf6; }
+        .bar-label { margin-top: 10px; font-weight: bold; }
+        
+        .operator { font-size: 2rem; font-weight: bold; color: #6b7280; padding-bottom: 30px; }
+        
+        .explanation { background: #e0f2fe; border-left: 4px solid #0ea5e9; padding: 16px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>덧셈 노드의 편미분: f(x, y) = x + y</h1>
+        <p>x와 y의 값을 슬라이더로 움직여보세요. x가 1 증가하면 f도 똑같이 1 증가하고, y가 1 증가해도 f는 똑같이 1 증가합니다.</p>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label style="color: #3b82f6">x의 값: <span id="x-val">3</span></label>
+                <input type="range" id="x-slider" min="0" max="10" step="1" value="3">
+            </div>
+            <div class="control-group">
+                <label style="color: #10b981">y의 값: <span id="y-val">4</span></label>
+                <input type="range" id="y-slider" min="0" max="10" step="1" value="4">
+            </div>
+        </div>
+
+        <div class="bar-container">
+            <div class="bar-wrapper">
+                <div class="bar x" id="bar-x" style="height: 30%;">3</div>
+                <div class="bar-label">x</div>
+            </div>
+            <div class="operator">+</div>
+            <div class="bar-wrapper">
+                <div class="bar y" id="bar-y" style="height: 40%;">4</div>
+                <div class="bar-label">y</div>
+            </div>
+            <div class="operator">=</div>
+            <div class="bar-wrapper" style="width: 100px;">
+                <div class="bar f" id="bar-f" style="height: 70%; width: 80px;">7</div>
+                <div class="bar-label">f(x, y)</div>
+            </div>
+        </div>
+
+        <div class="math-box">
+            f(x, y) = x + y<br><br>
+            ∂f / ∂x = <strong>1</strong>  (x를 아주 조금 변화시키면, 그만큼만 f가 변환함)<br>
+            ∂f / ∂y = <strong>1</strong>  (y를 아주 조금 변화시키면, 그만큼만 f가 변환함)
+        </div>
+        
+        <div class="explanation">
+            <strong>💡 로컬 미분값 (1, 1):</strong> 더하기 노드(`__add__`)는 x가 크든 작든 상관없이, 위에서 흘러내려온 글로벌 미분값을 두 개의 자식 노드에게 1배수로 똑같이(공평하게) 흘려보냅니다!
+        </div>
+    </div>
+
+    <script>
+        const xSlider = document.getElementById('x-slider');
+        const ySlider = document.getElementById('y-slider');
+        
+        function updateUI() {
+            let x = parseInt(xSlider.value);
+            let y = parseInt(ySlider.value);
+            let f = x + y;
+            
+            document.getElementById('x-val').innerText = x;
+            document.getElementById('y-val').innerText = y;
+            
+            const maxVal = 20; // x(10) + y(10)
+            
+            const barX = document.getElementById('bar-x');
+            barX.style.height = (x / maxVal * 100) + '%';
+            barX.innerText = x;
+            
+            const barY = document.getElementById('bar-y');
+            barY.style.height = (y / maxVal * 100) + '%';
+            barY.innerText = y;
+            
+            const barF = document.getElementById('bar-f');
+            barF.style.height = (f / maxVal * 100) + '%';
+            barF.innerText = f;
+        }
+
+        xSlider.addEventListener('input', updateUI);
+        ySlider.addEventListener('input', updateUI);
+        
+        updateUI();
+    </script>
+</body>
+</html>

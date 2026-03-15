@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지수 함수의 특이점: e^x</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f9fafb; color: #1f2937; }
+        .card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1 { font-size: 1.5rem; margin-top: 0; color: #111827; }
+        .control-group { margin-bottom: 20px; }
+        label { font-weight: 600; display: block; margin-bottom: 8px; }
+        input[type=range] { width: 100%; }
+        .math-box { background: #f3f4f6; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 1.1rem; margin-bottom: 20px; }
+        .highlight { color: #8b5cf6; font-weight: bold; }
+        canvas { width: 100%; height: 400px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>지수 함수의 미분: f(x) = e^x</h1>
+        <p>지수 함수는 <strong>미분을 해도 자신의 원래 값과 완벽히 똑같은</strong> 신기한 성질을 가지고 있습니다. x 값을 변경하며 함수값과 기울기를 비교해보세요.</p>
+        
+        <div class="control-group">
+            <label>현재 위치 (x): <span id="x-val">1.00</span></label>
+            <input type="range" id="x-slider" min="-2.0" max="2.5" step="0.01" value="1.0">
+        </div>
+
+        <div class="math-box">
+            <strong>[계산 수식]</strong><br>
+            f(x) = e<sup>x</sup><br>
+            f(<span id="eq-x">1.00</span>) = <span id="res-f" class="highlight">2.718</span><br><br>
+            
+            f'(x) = e<sup>x</sup>  (미분 공식)<br>
+            f'(<span id="eq-x2">1.00</span>) = <span id="res-df" class="highlight">2.718</span> (현재 점에서의 접선 기울기)
+        </div>
+
+        <canvas id="graphCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * 2;
+            canvas.height = 400 * 2;
+            ctx.scale(2, 2);
+            draw();
+        }
+
+        const xSlider = document.getElementById('x-slider');
+        
+        function updateUI() {
+            let x = parseFloat(xSlider.value);
+            document.getElementById('x-val').innerText = x.toFixed(2);
+            
+            let f = Math.exp(x);
+            
+            document.getElementById('eq-x').innerText = x.toFixed(2);
+            document.getElementById('res-f').innerText = f.toFixed(3);
+            
+            document.getElementById('eq-x2').innerText = x.toFixed(2);
+            document.getElementById('res-df').innerText = f.toFixed(3); // same as f
+            
+            draw();
+        }
+
+        function draw() {
+            const width = canvas.width / 2;
+            const height = canvas.height / 2;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            const xMin = -3, xMax = 3;
+            const yMin = -2, yMax = 15;
+            
+            function toScreen(x, y) {
+                return {
+                    sx: (x - xMin) / (xMax - xMin) * width,
+                    sy: height - (y - yMin) / (yMax - yMin) * height
+                };
+            }
+            
+            // Grid and axes
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            const origin = toScreen(0, 0);
+            ctx.moveTo(origin.sx, 0); ctx.lineTo(origin.sx, height);
+            ctx.moveTo(0, origin.sy); ctx.lineTo(width, origin.sy);
+            ctx.stroke();
+            
+            // Curve e^x
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            let first = true;
+            for (let px = 0; px <= width; px += 2) {
+                let x = xMin + (px / width) * (xMax - xMin);
+                let y = Math.exp(x);
+                let pt = toScreen(x, y);
+                if (first) { ctx.moveTo(pt.sx, pt.sy); first = false; }
+                else { ctx.lineTo(pt.sx, pt.sy); }
+            }
+            ctx.stroke();
+            
+            let currentX = parseFloat(xSlider.value);
+            let currentY = Math.exp(currentX);
+            let df = currentY; // derivative of e^x is e^x
+            
+            // Tangent line
+            ctx.strokeStyle = '#8b5cf6';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            let tX1 = xMin;
+            let tY1 = df * (tX1 - currentX) + currentY;
+            let p1 = toScreen(tX1, tY1);
+            
+            let tX2 = xMax;
+            let tY2 = df * (tX2 - currentX) + currentY;
+            let p2 = toScreen(tX2, tY2);
+            
+            ctx.moveTo(p1.sx, p1.sy);
+            ctx.lineTo(p2.sx, p2.sy);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Point
+            let cpt = toScreen(currentX, currentY);
+            ctx.fillStyle = '#8b5cf6';
+            ctx.beginPath();
+            ctx.arc(cpt.sx, cpt.sy, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw a triangle to visualize slope intuitively
+            // slope = dy/dx. If dx = 1, then dy = e^x.
+            let triPt1 = toScreen(currentX, currentY);
+            let triPt2 = toScreen(currentX + 1, currentY);
+            let triPt3 = toScreen(currentX + 1, currentY + df);
+            
+            ctx.strokeStyle = '#9ca3af';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(triPt1.sx, triPt1.sy);
+            ctx.lineTo(triPt2.sx, triPt2.sy);
+            ctx.lineTo(triPt3.sx, triPt3.sy);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '14px sans-serif';
+            ctx.fillText('+1 (dx)', triPt1.sx + 10, triPt1.sy + 20);
+            ctx.fillText('+' + df.toFixed(2) + ' (dy = 기울기)', triPt2.sx + 10, (triPt2.sy + triPt3.sy)/2);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        xSlider.addEventListener('input', updateUI);
+        
+        setTimeout(() => { resizeCanvas(); updateUI(); }, 100);
+    </script>
+</body>
+</html>
