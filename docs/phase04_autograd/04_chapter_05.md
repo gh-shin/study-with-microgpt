@@ -72,3 +72,6 @@ params = [p for mat in state_dict.values() for row in mat for p in row]
 ```
 
 이렇게 평탄화된 `params` 리스트에는 모델의 모든 학습 가능한 뇌세포(`Value` 객체)가 일렬로 담기게 됩니다. 이제 학습 루프만 돌리면 이 `params`들이 정답을 향해 조금씩 스스로의 값을 조정하게 됩니다!
+
+---
+| ← [이전 챕터 (Chapter 3, 4)](03_chapter_03_04.md) | [목록으로 (Plan)](01_plan.md) | [다음 챕터 (Chapter 6)](05_chapter_06.md) → |

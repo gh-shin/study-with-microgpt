@@ -101,3 +101,6 @@ def softmax(logits):
 ---
 
 이것으로 Phase 2의 수학 기초가 모두 완성되었습니다! 이제 이 확률 변환과 손실 계산이 실제 신경망 코드 내에서 어떤 위치에 들어가는지, Phase 3에서 딥러닝 아키텍처와 함께 배우게 됩니다.
+
+---
+| ← [이전 챕터 (Chapter 3)](03_chapter_03.md) | [목록으로 (Plan)](01_plan.md) | [다음 Phase (Phase 3) 계획서](../phase03_deep_learning/01_plan.md) → |

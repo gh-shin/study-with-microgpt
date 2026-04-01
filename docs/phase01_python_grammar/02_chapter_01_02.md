@@ -56,6 +56,42 @@ def backward():
 ```
 **핵심 포인트**: `microgpt.py`의 218~235번째 줄에 위치한 `def backward():` 내부에 중첩되어 정의된 `def build_topo(v):` 의 사용 패턴입니다. 위와 같이 중첩 함수를 쓰면, 바깥 함수의 로컬 변수(예: `visited`, `topo`)를 별도의 인자 전달 없이 공유하여 코드를 간결하게 짤 수 있습니다.
 
+### 💡 왜 중첩 함수인가?
+`build_topo`를 `backward()` 바깥에 독립적으로 정의해도 동작은 가능합니다. 하지만 중첩 함수를 쓰는 데에는 분명한 이유가 있습니다.
+
+1. **클로저(Closure)를 통한 변수 공유**: 안쪽 함수(`build_topo`)가 바깥 함수(`backward`)의 지역 변수(`visited`, `topo`)를 인자 전달 없이 직접 참조할 수 있습니다. 만약 독립 함수로 분리하면 `build_topo(v, visited, topo)` 처럼 매번 인자를 넘겨야 하며, 재귀 호출 시마다 이 인자들이 반복되어 코드가 장황해집니다.
+
+2. **캡슐화(Encapsulation)**: `build_topo`는 `backward()` 안에서만 쓰이는 내부 도우미(Helper) 함수입니다. 바깥에 노출할 이유가 없으므로 안쪽에 가두어 "이 함수는 역전파 전용"이라는 의도를 코드 구조로 명확히 표현합니다.
+
+3. **상태 격리**: `visited`와 `topo`는 `backward()` 한 번 호출할 때마다 새롭게 생성되어야 합니다. 중첩 함수로 만들면 호출마다 자연스럽게 새로운 스코프(Scope)가 만들어져 이전 호출의 잔여 상태가 섞이지 않습니다.
+
+```python
+# ❌ 독립 함수로 분리 시: 인자가 많아지고 의도가 흐려짐
+def build_topo(v, visited, topo):
+    if v not in visited:
+        visited.add(v)
+        for child in v._children:
+            build_topo(child, visited, topo)  # 매번 인자 전달 필요
+        topo.append(v)
+
+def backward(self):
+    visited = set()
+    topo = []
+    build_topo(self, visited, topo)  # 외부 함수 호출
+
+# ✅ 중첩 함수 사용 시: 깔끔하고 의도가 명확함
+def backward(self):
+    visited = set()
+    topo = []
+    def build_topo(v):           # 바깥 변수(visited, topo)를 자동 공유
+        if v not in visited:
+            visited.add(v)
+            for child in v._children:
+                build_topo(child)  # 인자 하나만으로 충분
+            topo.append(v)
+    build_topo(self)
+```
+
 
 # Chapter 2. 객체지향 프로그래밍 (OOP) 입문
 
@@ -110,3 +146,6 @@ a.update_gradient(0.1) # 내부적으로 update_gradient(a, 0.1) 처럼 동작
 print(a.grad)          # 0.1
 ```
 **핵심 포인트**: 위 코드처럼 `Value` 객체들은 단순 연산만 수행하는 것이 아니라 `backward()`같은 인스턴스 메서드를 지니며, 스스로의 자식 노드들을 찾아가서(`self._children`) 기울기를 전달하는 능동적인 작업 체계를 가집니다.
+
+---
+| [목록으로 (Plan)](01_plan.md) | [다음 챕터 (Chapter 3, 4, 5)](03_chapter_03_04_05.md) → |

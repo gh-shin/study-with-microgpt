@@ -10,17 +10,17 @@
 
 수학 기호로 쓰면 이렇게 됩니다. "결과값인 $f$에 대한 최초의 입력 $x$의 미세한 변화 비율($\frac{df}{dx}$)은, 중간 지점인 $g$가 미친 영향($\frac{df}{dg}$)에 방금 본 $x$가 $g$에 미친 영향($\frac{dg}{dx}$)을 곱한 것과 같다."
 
-$ \frac{\partial f}{\partial x} = \frac{\partial f}{\partial g} \times \frac{\partial g}{\partial x} $
+$$\frac{\partial f}{\partial x} = \frac{\partial f}{\partial g} \times \frac{\partial g}{\partial x}$$
 
 ## 3-2. 로컬 그래디언트와 글로벌 그래디언트의 분리
 파이썬 코드로 이 수식을 객체 지향적으로 녹여내기 위해서는, **'내가 아는 사실'과 '나에게 넘어올 사실'을 완벽하게 분리**해야 합니다.
 
-1. **로컬 그래디언트 (나만의 미분값, Local Gradient)** $\rightarrow$ $ \frac{\partial g}{\partial x} $
+1. **로컬 그래디언트 (나만의 미분값, Local Gradient)** $\rightarrow$ $\frac{\partial g}{\partial x}$
    * **현재의 노드($x$)가 바로 위 부모 노드($g$)의 결과물에 미친 극히 좁은 영향력**만을 뜻합니다.
    * "나는 전체 망은 모르겠어. 어쨌든 $g(x) = x \times 2$ 니까 내가 1 변하면 내 윗단 수식($g$)은 2 만큼 변해. 내 지역 그래디언트는 `2`야."
    * 💡 **코드 속 위치**: `__init__` 에 쓰이는 `_local_grads` 에 당당히 적어둡니다. (예: `(1, 1)` 이나 `(other.data, self.data)`)
 
-2. **글로벌 그래디언트 (나에게서 전체까지의 미분값, Global Gradient)** $\rightarrow$ $ \frac{\partial f}{\partial x} $
+2. **글로벌 그래디언트 (나에게서 전체까지의 미분값, Global Gradient)** $\rightarrow$ $\frac{\partial f}{\partial x}$
    * **가장 바깥 결과(Loss, $f$)에서부터 현재 나($x$)에게 도달하기까지의 기나긴 전체 영향력**입니다.
    * "맨 마지막 손실(Loss)이 나한테 흘러왔는데, 지금까지의 누적 영향력($\frac{df}{dg}$)이 `10`이라네."
    * 💡 **코드 속 위치**: 역전파(`backward()`) 과정 중에 누적되어 `self.grad` 변수에 최종적으로 저장되는 바로 그 숫자입니다.
@@ -97,7 +97,7 @@ flowchart BT
     style x_node fill:#d5e8d4,stroke:#82b366,stroke-width:2px
 ```
 
-
 ---
-수학의 기초 공사(Phase 2)는 이제 끝났습니다.
-이 단순한 더하기, 곱하기, 거듭제곱과 이들을 하나로 모아주는 체인 룰(역전파 누적)만 있으면, 수억 개의 파라미터를 갖는 GPT 트랜스포머의 어마어마한 수학식도 블록 장난감처럼 모조리 조립해 낼 수 있게 됩니다!
+| ← [이전 챕터 (Chapter 1, 2)](02_chapter_01_02.md) | [목록으로 (Plan)](01_plan.md) | [다음 챕터 (Chapter 4)](04_chapter_04.md) → |
+
+

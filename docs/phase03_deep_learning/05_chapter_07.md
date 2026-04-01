@@ -204,3 +204,6 @@ flowchart TB
 ---
 
 이제 트랜스포머의 전체 구조를 이해했습니다! 다음 Chapter 8에서는 위 과정에서 반복적으로 등장한 **RMSNorm**과 **잔차 연결**이 왜 신경망 학습에 필수적인지 배웁니다.
+
+---
+| ← [이전 챕터 (Chapter 6)](04_chapter_06.md) | [목록으로 (Plan)](01_plan.md) | [다음 챕터 (Chapter 8)](06_chapter_08.md) → |

@@ -57,3 +57,6 @@ flowchart BT
 > 🎮 **[인터랙티브 시각화: 순전파 DAG (Forward Pass) 체험하기](viz/viz_p3_01_forward_dag.html)** 
 > 트리 구조의 유기적 네트워크를 따라 전파되는 빛의 파티클 시뮬레이션을 통해 노드와 엣지의 흐름을 직접 관찰해 보세요.
 > ![순전파 DAG 시각화](viz/viz_p3_01.png)
+
+---
+| [목록으로 (Plan)](01_plan.md) | [다음 챕터 (Chapter 3, 4, 5)](03_chapter_03_04_05.md) → |

@@ -94,3 +94,6 @@ def softmax(logits):
 
 이제 복잡하고 거대한 프레임워크인 텐서플로(TensorFlow)나 파이토치(PyTorch)의 소스코드를 열어보아도 "아, 결국 바닥 코어에는 내가 만든 `Value` 같은 클래스와 `_children` 관계, 트리 순회 및 곱셈 누적이 숨어 있구나!"라는 것을 쉽게 떠올릴 수 있을 것입니다. 
 이 4단계 플랜과 문서를 통해 안드레이 카파시(Andrej Karpathy)가 `microgpt`로 전하고자 하는 진정한 딥러닝 코어 알고리즘의 원리를 깨달으시기 바랍니다.
+
+---
+| ← [이전 챕터 (Chapter 1, 2)](02_chapter_01_02.md) | [목록으로 (Plan)](01_plan.md) | [다음 챕터 (Chapter 5)](04_chapter_05.md) → |

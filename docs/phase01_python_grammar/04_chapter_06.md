@@ -157,3 +157,6 @@ def build_topo(v):
 ---
 
 이 챕터까지 마스터하면, `microgpt.py`에 등장하는 **모든 파이썬 문법적 장벽**이 사라지게 됩니다! 이제 Phase 2 (수학 기초)로 돌아가서, 남은 수학적 개념들을 보충할 차례입니다.
+
+---
+| ← [이전 챕터 (Chapter 3, 4, 5)](03_chapter_03_04_05.md) | [목록으로 (Plan)](01_plan.md) | [다음 Phase (Phase 2) 계획서](../phase02_math/01_plan.md) → |
