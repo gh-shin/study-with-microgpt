@@ -172,9 +172,9 @@ flowchart BT
         return Value(self.data * other.data, (self, other), (other.data, self.data))
 ```
 
----
-| [목록으로 (Plan)](01_plan.md) | [다음 챕터 (Chapter 3)](03_chapter_03.md) → |
-
 > 🔗 [인터랙티브 체험: 곱셈의 값 교환](viz/viz_05_partial_mul.html)
 > 
 > ![곱셈의 값 교환](viz/viz_05.png)
+
+---
+| [목록으로 (Plan)](01_plan.md) | [다음 챕터 (Chapter 3)](03_chapter_03.md) → |
